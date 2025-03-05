@@ -22,13 +22,13 @@ import gsap from "gsap";
 import Skeleton from "react-loading-skeleton"; // Skeleton loader
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAz4mpxwq-SQPuh92bXLH2EGOuThJlYvM8",
-  authDomain: "trouwerij-papa.firebaseapp.com",
-  projectId: "trouwerij-papa",
-  storageBucket: "trouwerij-papa.firebasestorage.app",
-  messagingSenderId: "648123798711",
-  appId: "1:648123798711:web:2d48efff5aa72d75c3a932",
-  measurementId: "G-PE60FH9PN9",
+  apiKey: "AIzaSyDG7qIrXuSeUzLXuo6n629MqBWdJv6FrEU",
+  authDomain: "trouwerij-arjan-rianda.firebaseapp.com",
+  projectId: "trouwerij-arjan-rianda",
+  storageBucket: "trouwerij-arjan-rianda.firebasestorage.app",
+  messagingSenderId: "541260868007",
+  appId: "1:541260868007:web:c627bb8ac0803979f16e82",
+  measurementId: "G-1ZGEGE1JP3",
 };
 
 const app = initializeApp(firebaseConfig);
