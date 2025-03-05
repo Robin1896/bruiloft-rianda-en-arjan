@@ -59,7 +59,6 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isCheckingUser, setIsCheckingUser] = useState(true);
-  const [sortByLikes, setSortByLikes] = useState<boolean>(true); // State for filtering by likes
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const postsRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -240,9 +239,9 @@ export default function Home() {
   };
 
   // Sort posts by likes count if sortByLikes is true
-  const sortedPosts = sortByLikes
-    ? [...posts].sort((a, b) => b.likes.length - a.likes.length) // Sort in descending order by likes
-    : posts;
+  const sortedPosts = [...posts].sort(
+    (a, b) => b.likes.length - a.likes.length
+  );
 
   const colors = ["rgb(248 184 139 / 71%)"];
 
