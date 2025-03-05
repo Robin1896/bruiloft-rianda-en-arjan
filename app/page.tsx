@@ -15,6 +15,9 @@ import {
   query,
   orderBy,
   onSnapshot,
+  doc,
+  updateDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { initializeApp } from "firebase/app";
@@ -42,6 +45,7 @@ type Post = {
   caption: string;
   imageUrl: string;
   createdAt: Date;
+  likes: string[]; // Array of userIds who liked the post
 };
 
 export default function Home() {
@@ -55,6 +59,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isCheckingUser, setIsCheckingUser] = useState(true);
+  const [sortByLikes, setSortByLikes] = useState<boolean>(true); // State for filtering by likes
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const postsRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -63,7 +68,6 @@ export default function Home() {
   useEffect(() => {
     setIsCheckingUser(true);
 
-    // Fix: Define the setUser type properly
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user); // user can either be of type 'User' or 'null'
     });
@@ -72,7 +76,6 @@ export default function Home() {
     const unsubscribePosts = onSnapshot(q, (snapshot) => {
       setIsLoadingPosts(false);
 
-      // Map the snapshot docs to match the Post type
       setPosts(
         snapshot.docs.map((doc) => {
           const data = doc.data();
@@ -81,7 +84,8 @@ export default function Home() {
             username: data.username,
             caption: data.caption,
             imageUrl: data.imageUrl,
-            createdAt: data.createdAt.toDate(), // Firestore timestamp to JavaScript Date
+            createdAt: data.createdAt.toDate(),
+            likes: data.likes || [], // Ensure likes are initialized
           };
         })
       );
@@ -96,7 +100,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoadingPosts && !isCheckingUser && postsRef.current) {
-      // GSAP animation for when posts are loaded
       gsap.fromTo(
         postsRef.current.children,
         { opacity: 0, scale: 0.8 },
@@ -104,11 +107,10 @@ export default function Home() {
       );
     }
 
-    // GSAP fade-in animation for all <h1> elements
     gsap.fromTo(
       "h1",
-      { opacity: 0 }, // initial state
-      { opacity: 1, duration: 1, stagger: 0.3 } // final state with stagger effect
+      { opacity: 0 },
+      { opacity: 1, duration: 1, stagger: 0.3 }
     );
   }, [isLoadingPosts, isCheckingUser]);
 
@@ -124,15 +126,12 @@ export default function Home() {
   };
 
   const handleUpload = async () => {
-    // Check if both capturedPhoto and image are null
     if (!capturedPhoto && !image) return;
 
     setIsUploading(true);
 
-    // Ensure that fileToUpload is a File object
-    const fileToUpload = capturedPhoto || image;
+    const fileToUpload: Blob | File | null = capturedPhoto || image;
 
-    // TypeScript knows that fileToUpload is a File object here, so it can access .name
     if (!fileToUpload) {
       setIsUploading(false);
       return;
@@ -140,8 +139,13 @@ export default function Home() {
 
     const imageRef = ref(
       storage,
-      `images/${(fileToUpload as File).name || "captured-photo"}`
+      `images/${
+        fileToUpload instanceof File
+          ? fileToUpload.name
+          : `captured-photo-${Date.now()}`
+      }`
     );
+
     await uploadBytes(imageRef, fileToUpload);
     const imageUrl = await getDownloadURL(imageRef);
     await addDoc(collection(db, "posts"), {
@@ -149,6 +153,7 @@ export default function Home() {
       caption,
       imageUrl,
       createdAt: new Date(),
+      likes: [], // Initialize an empty array of likes
     });
 
     setCaption("");
@@ -171,7 +176,6 @@ export default function Home() {
     }
   };
 
-  // Updated onClick handler
   const triggerFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -198,19 +202,16 @@ export default function Home() {
     const canvas = canvasRef.current as HTMLCanvasElement;
     const video = videoRef.current as HTMLVideoElement;
 
-    // Check if both video and canvas are available
     if (!video || !canvas) {
       console.error("Video or Canvas reference is null.");
       return;
     }
 
-    // Capture the photo from the video feed
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     const photo = canvas.toDataURL("image/png");
 
-    // Process the captured image data
     const byteString = atob(photo.split(",")[1]);
     const mimeString = photo.split(",")[0].split(":")[1].split(";")[0];
     const ab = new ArrayBuffer(byteString.length);
@@ -223,12 +224,25 @@ export default function Home() {
     setCapturedPhoto(blob);
     setIsTakingPhoto(false);
 
-    // Stop the video tracks (type assertion)
     if (videoRef.current?.srcObject) {
       const mediaStream = videoRef.current.srcObject as MediaStream;
       mediaStream.getTracks().forEach((track) => track.stop());
     }
   };
+
+  const handleLike = async (postId: string) => {
+    if (!user) return;
+
+    const postRef = doc(db, "posts", postId);
+    await updateDoc(postRef, {
+      likes: arrayUnion(user.uid), // Add the user's ID to the likes array
+    });
+  };
+
+  // Sort posts by likes count if sortByLikes is true
+  const sortedPosts = sortByLikes
+    ? [...posts].sort((a, b) => b.likes.length - a.likes.length) // Sort in descending order by likes
+    : posts;
 
   const colors = ["rgb(248 184 139 / 71%)"];
 
@@ -304,6 +318,7 @@ export default function Home() {
                 <input
                   type="file"
                   ref={fileInputRef}
+                  accept="image/*"
                   onChange={handleFileChange}
                   className="border p-2 rounded text-black hidden"
                 />
@@ -330,11 +345,11 @@ export default function Home() {
 
                 <button
                   onClick={handleUpload}
-                  className={`bg-blue-500 p-2 rounded text-white ${
+                  className={`${
                     (!imageUrl && !capturedPhoto) || !caption || isUploading
                       ? "opacity-50 cursor-not-allowed"
                       : ""
-                  }`}
+                  } bg-blue-500 p-2 rounded text-white`}
                   disabled={
                     (!imageUrl && !capturedPhoto) || !caption || isUploading
                   }
@@ -362,7 +377,7 @@ export default function Home() {
                 <Skeleton height={200} />
               </div>
             ) : (
-              posts.map((post) => (
+              sortedPosts.map((post) => (
                 <div
                   key={post.id}
                   className="post shadow-lg p-6 rounded-lg h-fit"
@@ -381,6 +396,25 @@ export default function Home() {
                     className="w-full mt-4 rounded-lg h-[200px] object-cover"
                     style={{ background: "rgba(0, 0, 0, 0.48)" }}
                   />
+                  <div className="flex justify-between items-center mt-4">
+                    <button
+                      onClick={() => handleLike(post.id)}
+                      style={{
+                        backgroundColor: "rgba(0, 0, 0, 0.55)",
+                        opacity: post.likes.includes(user.uid) ? 0.3 : 1,
+                        pointerEvents: post.likes.includes(user.uid)
+                          ? "none"
+                          : "auto",
+                      }}
+                      disabled={post.likes.includes(user.uid)}
+                      className="text-white text-sm px-4 py-2 rounded"
+                    >
+                      Like
+                    </button>
+                    <span className="text-white">
+                      {post.likes.length || 0} likes
+                    </span>
+                  </div>
                 </div>
               ))
             )}
