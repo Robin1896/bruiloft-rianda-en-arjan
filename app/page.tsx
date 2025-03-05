@@ -364,7 +364,10 @@ export default function Home() {
 
               <button
                 onClick={handleLogout}
-                className="bg-red-500 p-2 rounded w-full"
+                className=" p-2 rounded w-full"
+                style={{
+                  background: "rgba(128, 128, 128, 0.8)",
+                }}
               >
                 Uitloggen
               </button>
