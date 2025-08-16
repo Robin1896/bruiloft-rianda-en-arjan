@@ -278,7 +278,7 @@ export default function Home() {
             <h1 className="text-4xl">Arjan & Rianda</h1>
           </div>
           <div
-            className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 m-4"
+            className="h-full w-[calc(100%-48px)] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 m-4"
             ref={postsRef}
           >
             <div
